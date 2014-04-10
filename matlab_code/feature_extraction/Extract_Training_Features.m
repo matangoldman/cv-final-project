@@ -6,15 +6,20 @@
 close all;
 addpath('..\color_model');
 load('training_data.mat');
+% 1. loading hue-saturation histograms (sample_hist)
+% each entry belongs to a different file from the training data
+% each row in sample_hist{file_num}.data, is a histogram of a separate ball
+% 2. loading bin_lims - histogram's bin limits
 load('..\color_model\sample_hs_histograms.mat'); % for color features
 load('sample_comatrices.mat'); % for texture features
 load('grads_hists.mat');
 margin_factor = 0.5;
+% which features we use for training from the extracted features
 detector_features = [1 2 8 10];
 % detector_features = [1 2 8];
 
 display_feature_histograms = true;
-extract_features = true;
+extract_features = false;
 display_remaining_detection = false;
 
 
@@ -135,6 +140,8 @@ for feat_idx = 1:size(training_samples.feature_data,2)
         hold off;
     end
 end
+
+
 
 fprintf('number of false positives: %d\n', sum(~out_training_samples.is_positive));
 
