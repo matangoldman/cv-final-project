@@ -1,11 +1,15 @@
-function [out_training_data] = filter_training_data(training_data, training_samples, feature0_idx, feature_idx, feature_th, feature_polarity)
+function [out_training_data, out_training_samples] = filter_training_data(training_data, training_samples, feature_idx, feature_th, feature_polarity)
 %FILTER_TRAINING_DATA filter out samples from training data
-
-% out_training_data = training_data;
 
 filter_sample = feature_polarity*training_samples.feature_data(:,feature_idx) < feature_polarity*feature_th;
 cell_idx=training_samples.cell_idx(~filter_sample);
 idx_within_cell = training_samples.idx_within_cell(~filter_sample);
+
+out_training_samples = training_samples;
+out_training_samples.cell_idx(filter_sample) = [];
+out_training_samples.idx_within_cell(filter_sample) = [];
+out_training_samples.is_positive(filter_sample) = [];
+out_training_samples.feature_data(filter_sample,:) = [];
 
 % first of all - copy file names
 out_training_data = cell(size(training_data));

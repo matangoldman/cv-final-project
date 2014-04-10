@@ -15,6 +15,10 @@ for img_num=1:size(balls_GT,1)
     
     % (x0,y0,radius,measure)
     M = zeros(size(FV_DB{img_num}.feature_vectors,1), 4);
+    if(isempty(M))
+        continue;
+    end
+    
     M(:,1:3) = FV_DB{img_num}.feature_vectors;
     measure = zeros(size(FV_DB{img_num}.feature_vectors,1), size(balls_GT{img_num}.data,1));
     max_vals = [];
