@@ -5,6 +5,7 @@ color_hist_path       = '..\color_model\sample_hs_histograms.mat';     % for col
 gradients_hist_path   = '..\feature_extraction\grads_hists.mat';     % for color features
 texture_matrices_path = '..\feature_extraction\sample_comatrices.mat'; % for texture features
 classifier_path       = 'balls_classifier_data.mat'; % features data
+addpath '..\';
 % img_path = '..\Training Set\MVC-001F.JPG'; % test image
 % img_path = '..\Training Set\MVC-004F.JPG'; % test image
 % img_path = '..\Training Set\MVC-023F.JPG'; % test image
@@ -24,6 +25,7 @@ for img_ind = 1:size(img_path)
     % convert to hsv (detector's colorspace)
     I_hsv = rgb2hsv(I);
 
+
 %%
 % use hough transform to find candidate circles in the image
 
@@ -40,6 +42,7 @@ for ind=1:size(min_radius,2)
 %     imshow(I);
 %     viscircles(centers(1:100,:), radius(1:100),'EdgeColor','b');
 %     pause;
+
     
     %leave only the X best circles
     num_of_candidates = 50;
@@ -63,6 +66,9 @@ for ind=1:size(min_radius,2)
        end
     end
 end
+% draw_circle(x_sum/grade_sum,y_sum/grade_sum,rad,'c');
+%draw_circle(x_sum/det_count,y_sum/det_count,rad,'c');
+hold off;
 
 
 %%
