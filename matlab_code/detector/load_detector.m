@@ -51,3 +51,5 @@ balls_detector.color_model.color_hists = detector_hists;
 balls_detector.grads_hists = detector_ghists;
 balls_detector.texture_comatrices = detector_comatrices;
 balls_detector.classifier_features = ball_classifier;
+
+balls_detector.classifier_features.th(3) = 0.24;

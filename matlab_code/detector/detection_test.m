@@ -11,80 +11,135 @@ addpath '..\';
 % img_path = '..\Training Set\MVC-023F.JPG'; % test image
 
 img_path = dir('..\Training Set\*.jpg');
+%img_path = img_path(11);
 
+detection_results = cell(size(img_path,1));
 
-
-for img_ind = 1:size(img_path)
+T0 = tic;
+for img_ind = 1:size(img_path,1)
+% for img_ind = 1:2
+% for img_ind = 1
     % load detector
     [balls_detector] = load_detector(color_hist_path, gradients_hist_path, texture_matrices_path, classifier_path,...
         ['..\Training Set\' img_path(img_ind).name]);
-
+    
     % load image
     I = imread(['..\Training Set\' img_path(img_ind).name]);
     % imshow(I);
     % convert to hsv (detector's colorspace)
     I_hsv = rgb2hsv(I);
+    
+    
+    %%
+    % use hough transform to find candidate circles in the image
+%     min_radius =  (5:2:14).^2;
+%     max_radius =  (7:2:16).^2;
+    %     min_radius = 20:10:200;
+    %     max_radius = 30:10:210;
+    
+    rad = [20 25 35 50 70 95 125 160 200];
+    min_radius = rad(1:end-1);
+    max_radius = rad(2:end);
+    
+%     radius_step = 40;
+%     min_radius = 20:radius_step:200;
+%     max_radius = min_radius+radius_step;
 
-
-%%
-% use hough transform to find candidate circles in the image
-
-    min_radius = 25:25:200;
-    max_radius = min_radius+25;
+%     radius_step = 2;
+%     min_radius = 50:radius_step:60;
+%     max_radius = min_radius+radius_step;
+    
+    % edges image: edges in red/green channels
+%     Ie = edge(I(:,:,1),'canny') | edge(I(:,:,2),'canny');
+    Ie = edge(I(:,:,1),'canny') | edge(I(:,:,2),'canny');
     sensitivity = 1;
     valid_mat = [];
-for ind=1:size(min_radius,2)
-    radius_range = [min_radius(ind) max_radius(ind)];
-    [centers,radius,metric] = imfindcircles(I,radius_range,...
-        'Sensitivity',sensitivity,'ObjectPolarity','dark');
     
-%     figure(1);
-%     imshow(I);
-%     viscircles(centers(1:100,:), radius(1:100),'EdgeColor','b');
-%     pause;
+    for ind=1:size(min_radius,2)
+        radius_range = [min_radius(ind) max_radius(ind)];
+%         [centers,radius,metric] = imfindcircles(I,radius_range,...
+%             'Sensitivity',sensitivity,'ObjectPolarity','bright','EdgeThreshold',0.1);
+%         [centers2,radius2,metric2] = imfindcircles(I,radius_range,...
+%             'Sensitivity',sensitivity,'ObjectPolarity','dark','EdgeThreshold',0.1);
+        [centers,radius,metric] = imfindcircles(Ie,radius_range,...
+            'Sensitivity',sensitivity,'ObjectPolarity','bright','EdgeThreshold',0.1);
+        
+        %merge and sort bright and dark
+        num_of_candidates = 50;
+%         best_centers = vertcat(centers(1:num_of_candidates,:),centers2(1:num_of_candidates,:));
+%         best_radius  = vertcat(radius(1:num_of_candidates),radius2(1:num_of_candidates));
+%         best_metric  = vertcat(metric(1:num_of_candidates),metric2(1:num_of_candidates));
 
-    
-    %leave only the X best circles
-    num_of_candidates = 50;
-    rad = round(radius(1:num_of_candidates));
-    x = round(centers(1:num_of_candidates, 1));
-    y = round(centers(1:num_of_candidates, 2));
-    
-    %remove circles that goes out of the image
-    mask_vec = (y + rad < 480 & y-rad > 0 & x+rad < 640 & x-rad > 0);
-    x = x(mask_vec);
-    y = y(mask_vec);
-    
-    %grade every x,y,r using the detector
-    detection_mat = zeros(size(I,1), size(I,2));
-    valid_candidates = false(size(x));
-    for ind2=1:size(x);
-       temp = classify_region(balls_detector,I_hsv,x(ind2),y(ind2),rad(ind2));    
-       fprintf('ind=%d,ind2=%d,temp=%d\n',ind,ind2,temp);
-       if (temp > 0)
-           valid_mat = vertcat(valid_mat ,[x(ind2) y(ind2) rad(ind2) temp]);
-       end
+        best_centers = vertcat(centers(1:num_of_candidates,:),[]);
+        best_radius  = vertcat(radius(1:num_of_candidates),[]);
+        best_metric  = vertcat(metric(1:num_of_candidates),[]);
+        
+%         imshow(I);
+%         viscircles(best_centers, best_radius,'EdgeColor','b');
+%         title(sprintf('radius range: %d-%d', min_radius(ind),max_radius(ind)));
+%         pause;
+        
+        
+        %round and arrange the circles
+        rad = round(best_radius);
+        x = round(best_centers(:, 1));
+        y = round(best_centers(:, 2));
+        
+        %remove circles that goes out of the image
+        mask_vec = (y + rad < 480 & y-rad > 0 & x+rad < 640 & x-rad > 0);
+        x = x(mask_vec);
+        y = y(mask_vec);
+        
+        %grade every x,y,r using the detector
+        detection_mat = zeros(size(I,1), size(I,2));
+        valid_candidates = false(size(x));
+        for ind2=1:size(x);
+            temp = classify_region(balls_detector,I_hsv,x(ind2),y(ind2),rad(ind2));
+            fprintf('img_ind=%d,ind=%d,ind2=%d,temp=%d\n',img_ind,ind,ind2,temp);
+            if (temp > 0)
+                valid_mat = vertcat(valid_mat ,[x(ind2) y(ind2) rad(ind2) temp]);
+            end
+        end
     end
-end
-% draw_circle(x_sum/grade_sum,y_sum/grade_sum,rad,'c');
-%draw_circle(x_sum/det_count,y_sum/det_count,rad,'c');
-hold off;
-
-
-%%
-%use the detector for each one of the candidate circles
-
-subplot(5,5,img_ind);
-imshow(detection_mat,[]); colormap hot;
-hold on;
-imshow(I);
-%sort the valid matrix
-valid_mat = flipud(sortrows(valid_mat,4));
-viscircles(valid_mat(1:1,1:2), valid_mat(1:1,3),'EdgeColor','b');
-
+    % draw_circle(x_sum/grade_sum,y_sum/grade_sum,rad,'c');
+    %draw_circle(x_sum/det_count,y_sum/det_count,rad,'c');
+    hold off;
+    
+    
+    %%
+    %use the detector for each one of the candidate circles
+    
+    
+%     subplot(5,5,img_ind);
+    figure(img_ind);
+    hold on;
+    imshow(I);
+    %sort the valid matrix
+    %draw the "best" match
+    if size(valid_mat,2)>0
+        detection_results{img_ind} = valid_mat;
+        valid_mat = flipud(sortrows(valid_mat,4));
+        viscircles(valid_mat(1,1:2), valid_mat(1,3),'EdgeColor','r');
+    end
+    
+    % draw average circle
+    avg_num_circles = 10;
+    avg_num_circles = min(avg_num_circles,size(valid_mat,1));
+    
+    avg_circle = sum(valid_mat(1:avg_num_circles,1:3).*repmat(valid_mat(1:avg_num_circles,4), [1 3]),1)/sum(valid_mat(1:avg_num_circles,4));
+    med_circle = median(valid_mat(1:avg_num_circles,1:3),1);
+    viscircles(avg_circle(1:2), avg_circle(3),'EdgeColor','m');
+    viscircles(med_circle(1:2), med_circle(3),'EdgeColor','g');
+    
+    %draw the rest
+    if size(valid_mat,2)>1
+        viscircles(valid_mat(2:end,1:2), valid_mat(2:end,3),'EdgeColor','b');
+    end
+    
 end %img_ind
 
-
+DT = toc(T0);
+save('detection_res.mat', 'detection_results');
 
 
 %%
@@ -95,10 +150,10 @@ end %img_ind
 % detection_mat = zeros(size(I,1), size(I,2));
 % for y=1:y_step:size(I,1)
 %     for x=1:x_step:size(I,2)
-%        detection_mat(y,x) = classify_region(balls_detector,I_hsv,x,y,rad); 
+%        detection_mat(y,x) = classify_region(balls_detector,I_hsv,x,y,rad);
 %     end
-%     
+%
 %     fprintf('y=%d\n',y);
 % end
-% 
+%
 % imshow(detection_mat,[]); colormap hot;
