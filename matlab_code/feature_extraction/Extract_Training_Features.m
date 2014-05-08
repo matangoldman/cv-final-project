@@ -18,7 +18,7 @@ margin_factor = 0.5;
 detector_features = [1 2 8 10];
 % detector_features = [1 2 8];
 
-display_feature_histograms = true;
+display_feature_histograms = false;
 extract_features = false;
 display_remaining_detection = false;
 
@@ -154,3 +154,18 @@ if(display_remaining_detection)
     display_training_data(out_training_data);
     % display_training_data(training_data);
 end
+
+% SVM classifier
+% train
+p=training_samples.feature_data(pos_idx,detector_features);  % positive data
+n=training_samples.feature_data(~pos_idx,detector_features); % negative data
+labels = [ones(size(p,1),1);-ones(size(n,1),1)]; % class labels
+
+% test on training data
+svm_train_data = [p;n];
+SVMStruct = svmtrain(svm_train_data, labels);
+classify_results = svmclassify(SVMStruct, svm_train_data);
+sum(abs(classify_results - labels));
+
+% note: projections are calculated in svmdecision, 
+% which is called from svmclassify. can be used as detector grades
