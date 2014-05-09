@@ -17,8 +17,8 @@ overlap_th = 0.1;
 detection_results = cell(size(img_path,1));
 
 T0 = tic;
-for img_ind = 1:size(img_path,1)
-% for img_ind = 1:2
+% for img_ind = 1:size(img_path,1)
+for img_ind = 1
 % for img_ind = 19
     % load detector
     [balls_detector] = load_detector(color_hist_path, gradients_hist_path, texture_matrices_path, classifier_path,...
@@ -29,8 +29,6 @@ for img_ind = 1:size(img_path,1)
     % imshow(I);
     % convert to hsv (detector's colorspace)
     I_hsv = rgb2hsv(I);
-    
-    
     %%
     % use hough transform to find candidate circles in the image
 %     min_radius =  (5:2:14).^2;
@@ -51,8 +49,8 @@ for img_ind = 1:size(img_path,1)
 %     max_radius = min_radius+radius_step;
     
     % edges image: edges in red/green channels
-%     Ie = edge(I(:,:,1),'canny') | edge(I(:,:,2),'canny');
     Ie = edge(I(:,:,1),'canny') | edge(I(:,:,2),'canny');
+    
     sensitivity = 1;
     valid_mat = [];
     
@@ -62,8 +60,10 @@ for img_ind = 1:size(img_path,1)
 %             'Sensitivity',sensitivity,'ObjectPolarity','bright','EdgeThreshold',0.1);
 %         [centers2,radius2,metric2] = imfindcircles(I,radius_range,...
 %             'Sensitivity',sensitivity,'ObjectPolarity','dark','EdgeThreshold',0.1);
+%         T_HOUGH = tic;
         [centers,radius,metric] = imfindcircles(Ie,radius_range,...
             'Sensitivity',sensitivity,'ObjectPolarity','bright','EdgeThreshold',0.1);
+%         DT_hough(ind) = toc(T_HOUGH);
         
         %merge and sort bright and dark
         num_of_candidates = 50;
@@ -74,12 +74,6 @@ for img_ind = 1:size(img_path,1)
         best_centers = vertcat(centers(1:num_of_candidates,:),[]);
         best_radius  = vertcat(radius(1:num_of_candidates),[]);
         best_metric  = vertcat(metric(1:num_of_candidates),[]);
-        
-%         imshow(I);
-%         viscircles(best_centers, best_radius,'EdgeColor','b');
-%         title(sprintf('radius range: %d-%d', min_radius(ind),max_radius(ind)));
-%         pause;
-        
         
         %round and arrange the circles
         rad = round(best_radius);
@@ -93,6 +87,11 @@ for img_ind = 1:size(img_path,1)
         rad = rad(mask_vec);
         metric = best_metric(mask_vec);
         
+%         imshow(I);
+%         viscircles([x y], rad,'EdgeColor','b');
+%         title(sprintf('radius range: %d-%d', min_radius(ind),max_radius(ind)));
+%         pause;
+        
         %grade every x,y,r using the detector
         detection_mat = zeros(size(I,1), size(I,2));
         valid_candidates = false(size(x));
@@ -104,62 +103,44 @@ for img_ind = 1:size(img_path,1)
             end
         end
     end
-    % draw_circle(x_sum/grade_sum,y_sum/grade_sum,rad,'c');
-    %draw_circle(x_sum/det_count,y_sum/det_count,rad,'c');
-%     hold off;
-    
-    
     %%
     %use the detector for each one of the candidate circles
     
-    
-%     subplot(5,5,img_ind);
     figure(img_ind);
     imshow(I);
     hold on;
     
     % cluster detected balls
-    [circle_labels, num_clusters] = label_circles(valid_mat(:,1:3), overlap_th);
-    
-    hsv_colors = [(linspace(1/num_clusters, 1, num_clusters))' ones(num_clusters,1) ones(num_clusters,1)];
-    rgb_colors = hsv2rgb(hsv_colors);
+    if(~isempty(valid_mat))
+        [circle_labels, num_clusters] = label_circles(valid_mat(:,1:3), overlap_th);
 
-    for cluster_idx=1:num_clusters
-        cluster_circle_indeces = find(circle_labels == cluster_idx);
-        cluster_circles = valid_mat(cluster_circle_indeces,:);
-        viscircles(cluster_circles(:,1:2), cluster_circles(:,3), 'EdgeColor', rgb_colors(cluster_idx,:));
-        
-        % detection weights
-        weight_det = cluster_circles(:,4)/sum(cluster_circles(:,4));
-        weight_hough = cluster_circles(:,5)/sum(cluster_circles(:,5));
-        circ_weight = weight_det.*weight_hough;
-        
-        % best circle in the cluster
-        [~,best_circle_idx] = max(circ_weight); % top scoring circle
-        viscircles(cluster_circles(best_circle_idx,1:2), cluster_circles(best_circle_idx,3), 'EdgeColor', 'k');
-        
-        % average circle
-        avg_circle = sum((cluster_circles(:,1:3).*repmat(circ_weight,[1 3])), 1)/sum(circ_weight);
-        viscircles(avg_circle(1:2), avg_circle(3), 'EdgeColor', 'w');
+        hsv_colors = [(linspace(1/num_clusters, 1, num_clusters))' ones(num_clusters,1) ones(num_clusters,1)];
+        rgb_colors = hsv2rgb(hsv_colors);
+
+        for cluster_idx=1:num_clusters
+            cluster_circle_indeces = find(circle_labels == cluster_idx);
+            cluster_circles = valid_mat(cluster_circle_indeces,:);
+            viscircles(cluster_circles(:,1:2), cluster_circles(:,3), 'EdgeColor', rgb_colors(cluster_idx,:));
+
+            % detection weights
+            weight_det = cluster_circles(:,4)/sum(cluster_circles(:,4));
+            weight_hough = cluster_circles(:,5)/sum(cluster_circles(:,5));
+%             circ_weight = weight_det.*weight_hough;
+            circ_weight = weight_det;
+
+            % best circle in the cluster
+            [~,best_circle_idx] = max(circ_weight); % top scoring circle
+            viscircles(cluster_circles(best_circle_idx,1:2), cluster_circles(best_circle_idx,3), 'EdgeColor', 'k');
+
+            % average circle
+            avg_circle = sum((cluster_circles(:,1:3).*repmat(circ_weight,[1 3])), 1)/sum(circ_weight);
+            viscircles(avg_circle(1:2), avg_circle(3), 'EdgeColor', 'w');
+        end
     end
     
     hold off;
     
-%     %sort the valid matrix
-%     %draw the "best" match
-%     if size(valid_mat,2)>0
-%         detection_results{img_ind} = valid_mat;
-%         valid_mat = flipud(sortrows(valid_mat,4));
-%         viscircles(valid_mat(1,1:2), valid_mat(1,3),'EdgeColor','r');
-%     end
-%     
-%     %draw the rest
-%     if size(valid_mat,2)>1
-%         viscircles(valid_mat(2:end,1:2), valid_mat(2:end,3),'EdgeColor','b');
-%     end
-    
 end %img_ind
-
 DT = toc(T0);
 save('detection_res.mat', 'detection_results');
 
