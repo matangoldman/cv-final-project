@@ -18,7 +18,7 @@ detection_results = cell(size(img_path,1));
 
 T0 = tic;
 % for img_ind = 1:size(img_path,1)
-for img_ind = 1
+for img_ind = 1:25
 % for img_ind = 19
     % load detector
     [balls_detector] = load_detector(color_hist_path, gradients_hist_path, texture_matrices_path, classifier_path,...
@@ -36,9 +36,17 @@ for img_ind = 1
     %     min_radius = 20:10:200;
     %     max_radius = 30:10:210;
     
-    rad = [20 25 35 50 70 95 125 160 200];
-    min_radius = rad(1:end-1);
-    max_radius = rad(2:end);
+    %changing the radius every iteration
+    %rad = [20 25 35 50 70 95 125 160 200];
+    %min_radius = rad(1:end-1);
+    %max_radius = rad(2:end);
+    
+    %changing the scaling factor and mainttaing constant radius
+    scaling_factor = 5:-1:1;
+    min_radius = 20;
+    max_radius = 40;
+    
+    
     
 %     radius_step = 40;
 %     min_radius = 20:radius_step:200;
@@ -51,22 +59,24 @@ for img_ind = 1
     % edges image: edges in red/green channels
     Ie = edge(I(:,:,1),'canny') | edge(I(:,:,2),'canny');
     
+    
     sensitivity = 1;
     valid_mat = [];
     
-    for ind=1:size(min_radius,2)
-        radius_range = [min_radius(ind) max_radius(ind)];
+    for ind=1:size(scaling_factor,2)
+        radius_range = [min_radius max_radius];
 %         [centers,radius,metric] = imfindcircles(I,radius_range,...
 %             'Sensitivity',sensitivity,'ObjectPolarity','bright','EdgeThreshold',0.1);
 %         [centers2,radius2,metric2] = imfindcircles(I,radius_range,...
 %             'Sensitivity',sensitivity,'ObjectPolarity','dark','EdgeThreshold',0.1);
 %         T_HOUGH = tic;
-        [centers,radius,metric] = imfindcircles(Ie,radius_range,...
+        Ie_scaled = imresize(Ie,1/scaling_factor(ind));
+        [centers,radius,metric] = imfindcircles(Ie_scaled,radius_range,...
             'Sensitivity',sensitivity,'ObjectPolarity','bright','EdgeThreshold',0.1);
 %         DT_hough(ind) = toc(T_HOUGH);
         
         %merge and sort bright and dark
-        num_of_candidates = 50;
+        num_of_candidates = 30;
 %         best_centers = vertcat(centers(1:num_of_candidates,:),centers2(1:num_of_candidates,:));
 %         best_radius  = vertcat(radius(1:num_of_candidates),radius2(1:num_of_candidates));
 %         best_metric  = vertcat(metric(1:num_of_candidates),metric2(1:num_of_candidates));
@@ -81,7 +91,7 @@ for img_ind = 1
         y = round(best_centers(:, 2));
         
         %remove circles that goes out of the image
-        mask_vec = (y + rad < 480 & y-rad > 0 & x+rad < 640 & x-rad > 0);
+        mask_vec = (y + rad < size(Ie_scaled,1) & y-rad > 0 & x+rad < size(Ie_scaled,2) & x-rad > 0);
         x = x(mask_vec);
         y = y(mask_vec);
         rad = rad(mask_vec);
@@ -95,6 +105,11 @@ for img_ind = 1
         %grade every x,y,r using the detector
         detection_mat = zeros(size(I,1), size(I,2));
         valid_candidates = false(size(x));
+        
+        %descale x and y and rad;
+        x = x.*scaling_factor(ind);
+        y = y.*scaling_factor(ind);
+        rad = rad.*scaling_factor(ind);
         for ind2=1:size(x);
             detector_grade = classify_region(balls_detector,I_hsv,x(ind2),y(ind2),rad(ind2));
             fprintf('img_ind=%d,ind=%d,ind2=%d,detector_grade=%d\n',img_ind,ind,ind2,detector_grade);
