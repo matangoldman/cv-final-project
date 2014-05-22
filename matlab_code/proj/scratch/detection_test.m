@@ -15,11 +15,11 @@ scaling_factor = [1 1 2 2 2 3];
 min_radius = [20 41 28 40 55 46];
 max_radius = [40 65 40 55 72 67];
 
-num_of_candidates = 40;
+num_of_candidates = 50;
 
 T0 = tic;
 for img_ind = 1:size(img_path,1)
-% for img_ind = 16
+% for img_ind = 15
 % for img_ind = 23
     T0_Img = tic;
     
@@ -102,6 +102,7 @@ for img_ind = 1:size(img_path,1)
             % detection weights
             weight_det = cluster_circles(:,4)/sum(cluster_circles(:,4));
             weight_hough = cluster_circles(:,5)/sum(cluster_circles(:,5));
+%             circ_weight = weight_hough;
 %             circ_weight = weight_det.*weight_hough;
             circ_weight = weight_det;
 
@@ -124,4 +125,8 @@ for img_ind = 1:size(img_path,1)
     
 end %img_ind
 DT = toc(T0);
-fprintf('total time: %2.2f [minutes]\n', DT/60);
+
+DT_min = DT/60;
+DT_full_min = floor(DT/60);
+DT_sec = (DT_min-DT_full_min)*60;
+fprintf('total time: %2.0f:%2.0f\n', DT_full_min, DT_sec);
