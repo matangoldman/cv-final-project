@@ -15,16 +15,11 @@ scaling_factor = [1 1 2 2 2 3];
 min_radius = [20 41 28 40 55 46];
 max_radius = [40 65 40 55 72 67];
 
-% scaling_factor = [1 1 2 2 3 4];
-% min_radius = [20 41 28 41 37 34];
-% max_radius = [40 65 40 55 48 51];
-
-% num_of_candidates = 50;
-num_of_candidates = 35;
+num_of_candidates = 40;
 
 T0 = tic;
-% for img_ind = 1:size(img_path,1)
-for img_ind = 16
+for img_ind = 1:size(img_path,1)
+% for img_ind = 16
 % for img_ind = 23
     T0_Img = tic;
     
